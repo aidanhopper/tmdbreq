@@ -123,13 +123,10 @@ class TMDBDataRequester:
 
         seasons: list[Season] = []
 
-        n = 0
         for season in series_res["seasons"]:
-            if season["name"].lower().split(" ")[0] != "season":
-                continue
-            n += 1
+            season_number = season["season_number"]
 
-            ok, res = self._get(f"/3/tv/{self.tmdbid}/season/{n}")
+            ok, res = self._get(f"/3/tv/{self.tmdbid}/season/{season_number}")
             if not ok:
                 return None
 
@@ -142,7 +139,7 @@ class TMDBDataRequester:
                 ))
 
             seasons.append(Season(
-                season_number=n,
+                season_number=season_number,
                 episodes=episodes,
             ))
             
