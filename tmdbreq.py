@@ -226,6 +226,9 @@ class TVDownloader:
 
         rc = run(cmd)
 
+        if rc != 0: # Fail
+            run(f"rm -f {self._episode_path_predownload(episode)}")
+
         return rc == 0
 
     def _seasons_to_download(self):
