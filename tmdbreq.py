@@ -21,7 +21,7 @@ def run(cmd):
         print(proc.stdout)
     if proc.stderr != "":
         print(proc.stderr)
-    return proc.returncode
+    return proc.stdout.strip(), proc.stderr.strip(), int(proc.returncode)
     
 
 def dprint(d):
@@ -218,18 +218,21 @@ class TVDownloader:
         )
 
         cmd = (
-            f"curl {self._episode_download_url(episode)} "
-            f"> {self._episode_path_predownload(episode)}"
+            f'curl -s -w "%{{stderr}}%{{http_code}}\n" {self._episode_download_url(episode)} '
+            f'> {self._episode_path_predownload(episode)}'
         )
 
         print(f"[INFO] CMD {cmd}")
 
-        rc = run(cmd)
+        _, stderr, _ = run(cmd)
 
-        if rc != 0: # Fail
+        status_code = int(stderr)
+        print("STATUS_CODE", status_code)
+
+        if status_code != 200: # Fail
             run(f"rm -f {self._episode_path_predownload(episode)}")
 
-        return rc == 0
+        return status_code == 200
 
     def _seasons_to_download(self):
         ret = set()
@@ -250,7 +253,6 @@ class TVDownloader:
 
         episodes = []
         for season in show.seasons:
-            print(self.seasons)
             if self.seasons != "all" and season.season_number not in seasons_to_download:
                 continue
             for episode in season.episodes:
