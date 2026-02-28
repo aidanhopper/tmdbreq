@@ -249,19 +249,15 @@ class TVDownloader:
         for season in show.seasons:
             print(self.seasons)
             if self.seasons != "all" and season.season_number not in seasons_to_download:
-                print("HERE to continue")
                 continue
-            print("HERE")
             for episode in season.episodes:
                 episodes.append(episode)
-
 
         jobs = [[]]
         for episode in episodes:
             if len(jobs[-1]) == self.job_size:
                 jobs.append([])
             jobs[-1].append(episode)
-            
 
         for job in jobs:
             for episode in job:
