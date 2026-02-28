@@ -192,7 +192,7 @@ class TVDownloader:
         season_num = str(season.season_number)
         if season.season_number <= 9:
             season_num = f"0{season.season_number}"
-        return f"'Season {season.season_number}'"
+        return f"'Season {season_num}'"
 
     def _make_episode_dir(self, episode: Episode):
         run(f"mkdir -p {self._series_dir(episode.season.show)}/{self._season_dir(episode.season)}")
