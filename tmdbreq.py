@@ -190,8 +190,8 @@ class TVDownloader:
 
     def _season_dir(self, season: Season):
         season_num = str(season.season_number)
-        if len(season_num) == 1:
-            season_num = "0" + season_num
+        if season.season_number <= 9:
+            season_num = f"0{season.season_number}"
         return f"'Season {season.season_number}'"
 
     def _make_episode_dir(self, episode: Episode):
@@ -261,7 +261,10 @@ class TVDownloader:
 
         for job in jobs:
             for episode in job:
-                print(f"[INFO] Getting ready to download {episode.name}")
+                print(
+                    "[INFO] Getting ready to download "
+                    f"S{episode.season.season_number}E{episode.episode_number}"
+                )
                 self._make_episode_dir(episode)
 
             job_successes = await asyncio.gather(
