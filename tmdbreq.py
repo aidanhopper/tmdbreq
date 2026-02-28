@@ -5,6 +5,7 @@ Author: Aidan Hopper
 Date: 2/27/2026
 """
 
+import shlex
 import sys
 import subprocess
 import json
@@ -50,7 +51,6 @@ class Episode:
         return json.dumps({
             "name": self.name,
             "episode_number": self.episode_number,
-            "season_number": self.season_number,
         }, indent=4)
 
 class Season:
@@ -69,10 +69,11 @@ class Season:
         }, indent=4)
 
 class TVShow:
-    def __init__(self, name, year, tmdbid, seasons: list[Season]):
+    def __init__(self, name, year, tmdbid, tvdbid, seasons: list[Season]):
         self.name = name
         self.year = year
         self.tmdbid = tmdbid
+        self.tvdbid = tvdbid
         self.seasons = seasons
 
     def __str__(self):
@@ -80,6 +81,7 @@ class TVShow:
             "name": self.name,
             "year": self.year,
             "tmdbid": self.tmdbid,
+            "tvdbid": self.tvdbid,
             "seasons": [json.loads(str(season)) for season in self.seasons],
         }, indent=4)
 
@@ -147,10 +149,16 @@ class TMDBDataRequester:
             for episode in seasons[-1].episodes:
                 episode.set_season(seasons[-1])
 
+        ok, res = self._get(f"/3/tv/{self.tmdbid}/external_ids")
+        if not ok:
+            print(f"[ERROR] Cound not query exernal IDs for {self.tmdbid}")
+            return None
+
         show = TVShow(
             name=series_res["name"],
             year=int(series_res["first_air_date"].split("-")[0]),
             tmdbid=self.tmdbid,
+            tvdbid=res["tvdb_id"],
             seasons=seasons,
         )
 
@@ -176,8 +184,9 @@ class TVDownloader:
         self.seasons = seasons
 
     def _series_dir(self, show: TVShow):
-        # BUG NEED TO USE REAL TVDBID NOT TMDBID
-        return f"'{self.tv_shows_dir}'/'{show.name} ({show.year}) [tvdbid-{show.tmdbid}]'"
+        s = f"{shlex.quote(self.tv_shows_dir)}/"
+        s += shlex.quote(f"{show.name} ({show.year}) [tvdbid-{show.tvdbid}]")
+        return s
 
     def _season_dir(self, season: Season):
         return f"'Season {season.season_number}'"
@@ -238,10 +247,14 @@ class TVDownloader:
 
         episodes = []
         for season in show.seasons:
-            if season not in seasons_to_download:
+            print(self.seasons)
+            if self.seasons != "all" and season.season_number not in seasons_to_download:
+                print("HERE to continue")
                 continue
+            print("HERE")
             for episode in season.episodes:
                 episodes.append(episode)
+
 
         jobs = [[]]
         for episode in episodes:
@@ -252,6 +265,7 @@ class TVDownloader:
 
         for job in jobs:
             for episode in job:
+                print(f"[INFO] Getting ready to download {episode.name}")
                 self._make_episode_dir(episode)
 
             job_successes = await asyncio.gather(
@@ -264,46 +278,6 @@ class TVDownloader:
             if job_successes.count(False) != 0:
                 print("Failed")
                 return
-
-class Orchestrator:
-    def __init__(self, tmdbid, season, episodes, movies_dir, tv_shows_dir, media_request_api):
-        self.tmdbid = tmdbid
-        self.season = season
-        self.episodes = episodes
-        self.movies_dir = movies_dir
-        self.tv_shows_dir = tv_shows_dir
-        self.media_request_api = media_request_api
-
-    def _series_dir_name(self):
-        pass
-
-    def _season_dir_name(self):
-        pass
-
-    def _episode_name(self):
-        pass
-
-    def _endpoint(self, episode=None):
-        if episode is None:
-            return f"{self.media_request_api}/{self.tmdbid}"
-        return f"{self.media_request_api}/{self.tmdbid}/{self.season}/{episode}"
-
-    async def _request_tv_show_season(self):
-        for i in range(1, self.episodes + 1):
-            print(self._endpoint(i))
-        
-    async def _request_movie(self):
-        print("MOVIE")
-
-    async def request(self):
-        if (self.season is not None and self.episodes is None) or (
-            self.season is None and self.episodes is not None):
-            raise Execption("You must specify both seasons and episodes")
-        if self.season is not None:
-            await self._request_tv_show_season()
-            return
-        await self._request_movie()
-
 
 async def main():
     load_dotenv()
@@ -333,10 +307,6 @@ async def main():
     show = tmdb.request()
 
     await tvdownloader.download(show)
-
-    # orc = Orchestrator(tmdbid)
-    #
-    # await orc.request()
 
     return 0
 
