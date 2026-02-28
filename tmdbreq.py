@@ -30,6 +30,7 @@ def config_argparse():
     parser = argparse.ArgumentParser()
     parser.add_argument("type", choices=["movie", "tv"])
     parser.add_argument("--jobs", "-j", default=10, type=int)
+    parser.add_argument("--seasons", "-s", default="all")
     parser.add_argument("tmdbid")
     return parser
 
@@ -168,12 +169,14 @@ class TMDBDataRequester:
 
 
 class TVDownloader:
-    def __init__(self, api_url, tv_shows_dir, job_size):
+    def __init__(self, api_url, tv_shows_dir, job_size, seasons):
         self.api_url = api_url
         self.tv_shows_dir = tv_shows_dir
         self.job_size = job_size
+        self.seasons = seasons
 
     def _series_dir(self, show: TVShow):
+        # BUG NEED TO USE REAL TVDBID NOT TMDBID
         return f"'{self.tv_shows_dir}'/'{show.name} ({show.year}) [tvdbid-{show.tmdbid}]'"
 
     def _season_dir(self, season: Season):
@@ -216,12 +219,27 @@ class TVDownloader:
 
         return rc == 0
 
-    def _download_season(self, season: Season):
-        pass
+    def _seasons_to_download(self):
+        ret = set()
+        season_ranges = self.seasons.split(",")
+        for r in season_ranges:
+            r = r.split("-")
+            if len(r) == 1:
+                ret.add(int(r[0]))
+            elif len(r) > 1:
+                left = int(r[0])
+                right = int(r[1])
+                for i in range(left, right + 1):
+                    ret.add(i)
+        return ret
 
     async def download(self, show: TVShow):
+        seasons_to_download = self._seasons_to_download()
+
         episodes = []
         for season in show.seasons:
+            if season not in seasons_to_download:
+                continue
             for episode in season.episodes:
                 episodes.append(episode)
 
@@ -296,6 +314,7 @@ async def main():
     media_type = args.type
     tmdbid = args.tmdbid
     job_size = args.jobs
+    seasons = args.seasons
 
     movies_dir = os.getenv("MOVIES_DIR")
     tv_shows_dir = os.getenv("TV_SHOWS_DIR")
@@ -309,7 +328,7 @@ async def main():
         return 1
 
     tmdb = TMDBDataRequester(tmdbid, tmdb_api_key, media_type)
-    tvdownloader = TVDownloader(media_request_api, tv_shows_dir, job_size)
+    tvdownloader = TVDownloader(media_request_api, tv_shows_dir, job_size, seasons)
 
     show = tmdb.request()
 
